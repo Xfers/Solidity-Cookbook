@@ -50,15 +50,16 @@ contract PBM_DirectUnpackContract {
         require(pbm.redemption.status != TransactionStatus.REDEEMED, "Already redeemed");
         require(pbm.redemption.status != TransactionStatus.REQUESTED, "Already requested");
 
+        uint256 unwrappedAmount = pbm.value;
         if (pbm.redemption.status == TransactionStatus.NONE) {
-            uint256 unwrappedAmount = pbm.value;
-
             pbm.redemption = PBMRedemption({
                 to: _to,
                 unwrappedAmount: unwrappedAmount,
                 status: TransactionStatus.REQUESTED
             });
         } else if (pbm.redemption.status == TransactionStatus.APPROVED) {
+            require(pbm.redemption.to == _to, "Recipient does not match");
+            require(pbm.redemption.unwrappedAmount == unwrappedAmount, "Unwrapped amount does not match");
             unwrapPBM(pbm);
         }
     }
@@ -69,9 +70,8 @@ contract PBM_DirectUnpackContract {
         require(pbm.redemption.status != TransactionStatus.REDEEMED, "Already redeemed");
         require(pbm.redemption.status != TransactionStatus.APPROVED, "Already approved");
 
+        uint256 unwrappedAmount = pbm.value;
         if (pbm.redemption.status == TransactionStatus.NONE) {
-            uint256 unwrappedAmount = pbm.value;
-
             pbm.redemption = PBMRedemption({
                 to: _to,
                 unwrappedAmount: unwrappedAmount,
@@ -87,6 +87,8 @@ contract PBM_DirectUnpackContract {
                 revert("Transfer to contract account failed");
             }
         } else if (pbm.redemption.status == TransactionStatus.REQUESTED) {
+            require(pbm.redemption.to == _to, "Recipient does not match");
+            require(pbm.redemption.unwrappedAmount == unwrappedAmount, "Unwrapped amount does not match");
             unwrapPBM(pbm);
         }
     }

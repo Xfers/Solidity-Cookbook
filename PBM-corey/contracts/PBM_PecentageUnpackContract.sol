@@ -67,6 +67,7 @@ contract PBM_PercentageUnpackContract {
                 status: TransactionStatus.REQUESTED
             });
         } else if (pbm.redemption.status == TransactionStatus.APPROVED) {
+            require(pbm.redemption.to == _to, "Recipient does not match");
             require(unwrappedAmount == pbm.redemption.unwrappedAmount, "Unwrapped amount does not match");
             unwrapPBM(pbm);
         }
@@ -95,6 +96,7 @@ contract PBM_PercentageUnpackContract {
                 revert("Transfer to contract account failed");
             }
         } else if (pbm.redemption.status == TransactionStatus.REQUESTED) {
+            require(pbm.redemption.to == _to, "Recipient does not match");
             require(unwrappedAmount == pbm.redemption.unwrappedAmount, "Unwrapped amount does not match");
 
             unwrapPBM(pbm);
