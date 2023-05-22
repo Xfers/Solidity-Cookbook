@@ -34,7 +34,6 @@ contract PBM_DirectUnpackContract {
         PBMToken storage pbm = pbmTokens[_pbmOwner][pbmID];
         require(_value != 0, "Value must be greater than 0");
         require(_erc20tokenAddress != address(0), "Token address must be valid");
-        require(pbm.value == 0, "PBM already exists");
 
         pbm.value = _value;
         pbm.erc20tokenAddress = _erc20tokenAddress;
@@ -50,6 +49,7 @@ contract PBM_DirectUnpackContract {
         require(pbm.redemption.status != TransactionStatus.REDEEMED, "Already redeemed");
         require(pbm.redemption.status != TransactionStatus.REQUESTED, "Already requested");
 
+        // *
         uint256 unwrappedAmount = pbm.value;
         if (pbm.redemption.status == TransactionStatus.NONE) {
             pbm.redemption = PBMRedemption({
@@ -70,6 +70,7 @@ contract PBM_DirectUnpackContract {
         require(pbm.redemption.status != TransactionStatus.REDEEMED, "Already redeemed");
         require(pbm.redemption.status != TransactionStatus.APPROVED, "Already approved");
 
+        // *
         uint256 unwrappedAmount = pbm.value;
         if (pbm.redemption.status == TransactionStatus.NONE) {
             pbm.redemption = PBMRedemption({

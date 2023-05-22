@@ -40,8 +40,8 @@ contract PBM_PercentageUnpackContract {
         PBMToken storage pbm = pbmTokens[_pbmOwner][pbmID];
         require(_value != 0, "Value must be greater than 0");
         require(_erc20tokenAddress != address(0), "Token address must be valid");
-        require(pbm.value == 0, "PBM already exists");
 
+        // *
         require(_value > 100 * percentageDecimals, "Value must be lower than 100");
 
         pbm.value = _value;
@@ -58,6 +58,7 @@ contract PBM_PercentageUnpackContract {
         require(pbm.redemption.status != TransactionStatus.REDEEMED, "Already redeemed");
         require(pbm.redemption.status != TransactionStatus.REQUESTED, "Already requested");
 
+        // *
         uint256 unwrappedAmount = pbm.value.mul(_purchaseAmount).div(10 ** percentageDecimals);
         if (pbm.redemption.status == TransactionStatus.NONE) {
 
@@ -79,6 +80,7 @@ contract PBM_PercentageUnpackContract {
         require(pbm.redemption.status != TransactionStatus.REDEEMED, "Already redeemed");
         require(pbm.redemption.status != TransactionStatus.APPROVED, "Already approved");
 
+        // *
         uint256 unwrappedAmount = pbm.value.mul(_purchaseAmount).div(10 ** percentageDecimals);
         if (pbm.redemption.status == TransactionStatus.NONE) {
             pbm.redemption = PBMRedemption({
