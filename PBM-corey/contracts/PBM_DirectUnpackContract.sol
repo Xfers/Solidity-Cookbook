@@ -18,7 +18,7 @@ contract PBM_DirectUnpackContract {
     }
 
     struct PBMToken {
-        IERC20 erc20token;
+        address erc20tokenAddress;
         uint256 value;
         PBMRedemption redemption;
     }
@@ -26,8 +26,27 @@ contract PBM_DirectUnpackContract {
     // PBM Owner => PBM ID => PBM Token
     mapping (address => mapping(uint256 => PBMToken)) public pbmTokens;
 
+    // PBM Owner => PBM Count
+    mapping (address => uint256) public pbmCount;
+
+    function mint(address _pbmOwner, address _erc20tokenAddress, uint256 _value) public returns(uint256) {
+        uint256 pbmID = pbmCount[_pbmOwner];
+        PBMToken storage pbm = pbmTokens[_pbmOwner][pbmID];
+        require(_value != 0, "Value must be greater than 0");
+        require(_erc20tokenAddress != address(0), "Token address must be valid");
+        require(pbm.value == 0, "PBM already exists");
+
+        pbm.value = _value;
+        pbm.erc20tokenAddress = _erc20tokenAddress;
+        pbm.redemption.status = TransactionStatus.NONE;
+        pbmCount[_pbmOwner] = pbmID + 1;
+
+        return pbmID;
+    }
+
     function redeem(address _to, uint256 _pbmID) public {
         PBMToken storage pbm = pbmTokens[msg.sender][_pbmID];
+        require(pbm.value != 0, "PBM does not exist");
         require(pbm.redemption.status != TransactionStatus.REDEEMED, "Already redeemed");
         require(pbm.redemption.status != TransactionStatus.REQUESTED, "Already requested");
 
@@ -46,6 +65,7 @@ contract PBM_DirectUnpackContract {
 
     function approve(address _pbmOwner, uint256 _pbmID, address _to) public {
         PBMToken storage pbm = pbmTokens[_pbmOwner][_pbmID];
+        require(pbm.value != 0, "PBM does not exist");
         require(pbm.redemption.status != TransactionStatus.REDEEMED, "Already redeemed");
         require(pbm.redemption.status != TransactionStatus.APPROVED, "Already approved");
 
@@ -58,15 +78,24 @@ contract PBM_DirectUnpackContract {
                 status: TransactionStatus.APPROVED
             });
 
-            require(pbm.erc20token.approve(address(this), unwrappedAmount), "Approval failed");
-            require(pbm.erc20token.transferFrom(msg.sender, address(this), unwrappedAmount), "Transfer to contract account failed");
+            IERC20 erc20token = IERC20(pbm.erc20tokenAddress);
+            if(!erc20token.approve(address(this), unwrappedAmount)) {
+                revert("Approval failed");
+            }
+
+            if (!erc20token.transferFrom(msg.sender, address(this), unwrappedAmount)) {
+                revert("Transfer to contract account failed");
+            }
         } else if (pbm.redemption.status == TransactionStatus.REQUESTED) {
             unwrapPBM(pbm);
         }
     }
 
     function unwrapPBM(PBMToken storage pbm) private {
-        require(pbm.erc20token.transfer(pbm.redemption.to, pbm.redemption.unwrappedAmount), "Transfer to recipient failed");
+        IERC20 erc20token = IERC20(pbm.erc20tokenAddress);
+        if(!erc20token.transfer(pbm.redemption.to, pbm.redemption.unwrappedAmount)) {
+            revert("Transfer to recipient failed");
+        }
         pbm.redemption.status = TransactionStatus.REDEEMED;
     }
 }
