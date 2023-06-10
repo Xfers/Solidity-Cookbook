@@ -3,10 +3,10 @@
 pragma solidity >= 0.8.18;
 
 interface TBills {
-  event TBillsPurchased(uint256 indexed id, uint256 amount, uint256 period, uint256 interestRate);
-  event TBillsRevoked(uint256 indexed id, uint256 amount, uint256 period, uint256 interestRate);
-  event TBillsRedeemed(uint256 indexed id, uint256 amount, uint256 period, uint256 interestRate);
-  event TBillsForceRefunded(uint256 indexed id, uint256 amount, uint256 period, uint256 interestRate);
+  event TBillsLocked(LockedTBills);
+  event TBillsRevoked(LockedTBills);
+  event TBillsRedeemed(LockedTBills);
+  event TBillsForceRefunded(LockedTBills);
 
   struct InterestPolicy {
     uint256 period;
@@ -15,6 +15,7 @@ interface TBills {
 
   struct LockedTBills {
     uint256 id;
+    address owner;
     uint256 interestRate;
     uint256 spotTokenAmount;
     uint256 releaseTimestamp;
@@ -36,6 +37,9 @@ interface TBills {
 
   // @dev Allow admin to deposit ERC20Token for interests
   function depositInterestFunds(uint256 amount) external;
+
+  // @dev Allow admin to withdraw ERC20Token for interests
+  function withdrawInterestFunds(uint256 amount) external;
 
   //=== User functions ===//
   // @dev Let people buy TBills token with ERC20Token and select the locking period
