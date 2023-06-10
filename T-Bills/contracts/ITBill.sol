@@ -38,11 +38,12 @@ interface ITBill {
     // @dev Get Interest Fund Balance
     function getInterestFundBalance() external view returns (uint256);
 
+    // @dev Get Interest rate
+    function getInterestRate(uint256 period) external view returns (uint256);
+
     //=== Admin functions ===//
     // @dev Allow admin to set interest rates for each period, if interest rate is <= 0, then the period is not available
     function setInterestRate(uint256 period, uint256 interestRate) external;
-
-    function deleteInterestRate(uint256 period) external;
 
     //=== User functions ===//
     // @dev Let people buy TBill token with ERC20Token and select the locking period

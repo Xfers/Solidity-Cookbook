@@ -30,14 +30,13 @@ contract TBillContract is ITBill {
     address public interestFundAddress; // a.k.a. Owner
     address public erc20TokenAddress;
     // Period => InterestRate
-    mapping(uint256 => uint256) public interestPolicies;
+    InterestPolicy[] public interestPolicies;
     LockedTBill[] private _tbills;
 
     //=== Index ===//
     uint256 private _totalLockedTokens;
     // Owner Address => TBillID[]
     mapping(address => uint256[]) private _tbillsHoldingIndex;
-    uint256[] private _supportedPeriods;
 
     constructor(address _interestFundAddress, address _erc20TokenAddress) {
         interestFundAddress = _interestFundAddress;
@@ -69,23 +68,21 @@ contract TBillContract is ITBill {
         override
         returns (InterestPolicy[] memory)
     {
-        InterestPolicy[] memory policies = new InterestPolicy[](
-            _supportedPeriods.length
-        );
-
-        for (uint256 i = 0; i < _supportedPeriods.length; i++) {
-            policies[i] = InterestPolicy(
-                _supportedPeriods[i],
-                interestPolicies[_supportedPeriods[i]]
-            );
-        }
-
-        return policies;
+        return interestPolicies;
     }
 
     function getInterestFundBalance() external view override returns (uint256) {
         IERC20 erc20token = IERC20(erc20TokenAddress);
         return erc20token.balanceOf(interestFundAddress);
+    }
+
+    function getInterestRate(uint256 period)
+        external
+        view
+        override
+        returns (uint256)
+    {
+        return _getInterestRate(period);
     }
 
     //=== Admin functions ===//
@@ -94,29 +91,22 @@ contract TBillContract is ITBill {
         uint256 interestRate
     ) external override onlyOwner {
         require(period > 0, "Period must be greater than zero");
-        require(interestRate > 0, "Interest rate must be greater than zero");
-        interestPolicies[period] = interestRate;
 
-        _supportedPeriods.push(period);
-
-        emit InterestPolicyChanged(period, interestRate);
-    }
-
-    function deleteInterestRate(uint256 period) external override onlyOwner {
-        require(period > 0, "Period must be greater than zero");
-        interestPolicies[period] = 0;
-
-        for (uint256 i = 0; i < _supportedPeriods.length; i++) {
-            if (_supportedPeriods[i] == period) {
-                _supportedPeriods[i] = _supportedPeriods[
-                    _supportedPeriods.length - 1
-                ];
-                _supportedPeriods.pop();
-                break;
+        for (uint256 i = 0; i < interestPolicies.length; i++) {
+            if (interestPolicies[i].period == period) {
+                interestPolicies[i].interestRate = interestRate;
+                emit InterestPolicyChanged(period, interestRate);
+                return;
             }
         }
 
-        emit InterestPolicyChanged(period, 0);
+        InterestPolicy memory newPolicy = InterestPolicy({
+            period: period,
+            interestRate: interestRate
+        });
+
+        interestPolicies.push(newPolicy);
+        emit InterestPolicyChanged(period, interestRate);
     }
 
     //=== User functions ===//
@@ -126,7 +116,7 @@ contract TBillContract is ITBill {
         uint256 period
     ) external override returns (uint256 id) {
         require(amount > 0, "Amount must be greater than zero");
-        require(interestPolicies[period] > 0, "Period not supported");
+        require(_getInterestRate(period) > 0, "Period not supported");
 
         // Lock the token into the contract
         IERC20 erc20token = IERC20(erc20TokenAddress);
@@ -144,7 +134,7 @@ contract TBillContract is ITBill {
         LockedTBill memory createdTBill = LockedTBill({
             id: id,
             owner: msg.sender,
-            interestRate: interestPolicies[period],
+            interestRate: _getInterestRate(period),
             spotTokenAmount: amount,
             releaseTimestamp: block.timestamp + period
         });
@@ -229,5 +219,15 @@ contract TBillContract is ITBill {
 
         // Mark as redeemed
         tbill.owner = address(0);
+    }
+
+    function _getInterestRate(uint256 period) private view returns (uint256) {
+        for (uint256 i = 0; i < interestPolicies.length; i++) {
+            if (interestPolicies[i].period == period) {
+                return interestPolicies[i].interestRate;
+            }
+        }
+
+        return 0;
     }
 }
