@@ -27,10 +27,11 @@ contract TBillContract is ITBill {
 
     //=== Database ===//
     uint256 public interestRateDecimals = 6;
+    uint256 public minimumLockingPeriod = 1 days;
     address public interestFundAddress; // a.k.a. Owner
     address public erc20TokenAddress;
     // Period => InterestRate
-    InterestPolicy[] public interestPolicies;
+    InterestPolicy[] private _interestPolicies;
     LockedTBill[] private _tbills;
 
     //=== Index ===//
@@ -68,7 +69,7 @@ contract TBillContract is ITBill {
         override
         returns (InterestPolicy[] memory)
     {
-        return interestPolicies;
+        return _interestPolicies;
     }
 
     function getInterestFundBalance() external view override returns (uint256) {
@@ -90,11 +91,11 @@ contract TBillContract is ITBill {
         uint256 period,
         uint256 interestRate
     ) external override onlyOwner {
-        require(period > 0, "Period must be greater than zero");
+        require(period >= minimumLockingPeriod, "Period too short");
 
-        for (uint256 i = 0; i < interestPolicies.length; i++) {
-            if (interestPolicies[i].period == period) {
-                interestPolicies[i].interestRate = interestRate;
+        for (uint256 i = 0; i < _interestPolicies.length; i++) {
+            if (_interestPolicies[i].period == period) {
+                _interestPolicies[i].interestRate = interestRate;
                 emit InterestPolicyChanged(period, interestRate);
                 return;
             }
@@ -105,7 +106,7 @@ contract TBillContract is ITBill {
             interestRate: interestRate
         });
 
-        interestPolicies.push(newPolicy);
+        _interestPolicies.push(newPolicy);
         emit InterestPolicyChanged(period, interestRate);
     }
 
@@ -222,9 +223,9 @@ contract TBillContract is ITBill {
     }
 
     function _getInterestRate(uint256 period) private view returns (uint256) {
-        for (uint256 i = 0; i < interestPolicies.length; i++) {
-            if (interestPolicies[i].period == period) {
-                return interestPolicies[i].interestRate;
+        for (uint256 i = 0; i < _interestPolicies.length; i++) {
+            if (_interestPolicies[i].period == period) {
+                return _interestPolicies[i].interestRate;
             }
         }
 
