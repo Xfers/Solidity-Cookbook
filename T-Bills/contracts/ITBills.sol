@@ -2,19 +2,19 @@
 
 pragma solidity >= 0.8.18;
 
-interface TBills {
+interface TBill {
   event InterestPolicyChanged(uint256 period, uint256 interestRate);
-  event TBillsLocked(LockedTBills);
-  event TBillsRevoked(LockedTBills);
-  event TBillsRedeemed(LockedTBills);
-  event TBillsForceRefunded(LockedTBills);
+  event TBillLocked(LockedTBill);
+  event TBillRevoked(LockedTBill);
+  event TBillRedeemed(LockedTBill);
+  event TBillForceRefunded(LockedTBill);
 
   struct InterestPolicy {
     uint256 period;
     uint256 interestRate;
   }
 
-  struct LockedTBills {
+  struct LockedTBill {
     uint256 id;
     address owner;
     uint256 interestRate;
@@ -43,17 +43,17 @@ interface TBills {
   function withdrawInterestFunds(uint256 amount) external;
 
   //=== User functions ===//
-  // @dev Let people buy TBills token with ERC20Token and select the locking period
-  function buyTBills(uint256 amount, uint256 period) external returns (uint256 id);
+  // @dev Let people buy TBill token with ERC20Token and select the locking period
+  function buyTBill(uint256 amount, uint256 period) external returns (uint256 id);
 
-  // @dev Let people revoke the locking if it's within 30 minutes after the purchase
-  function revokeTBills(uint256 id) external;
+  // @dev Query msg.sender's TBill holdings and details
+  function getTBillHolding() external view returns (LockedTBill[] memory tbills);
 
-  // @dev Query msg.sender's TBills holdings and details
-  function getTBillsHolding() external view returns (LockedTBills[] memory tbills);
+  // @dev Query msg.sender's TBill holding by id
+  function getTBillById(uint256 id) external view returns (LockedTBill memory tbill);
 
-  // @dev Redeem TBills token to get back ERC20Token when released
-  function redeemTBills(uint256 id) external;
+  // @dev Redeem TBill token to get back ERC20Token when released
+  function redeemTBill(uint256 id) external;
 
   // @dev Allow user to do force refund if the contract is not able to pay back with interests after the release date
   function forceRefund(uint256 id) external;
