@@ -30,7 +30,7 @@ interface TBills {
   function getTotalLockedTokens() external view returns (uint256 totalLockedTokens);
 
   // @dev Show current interest rate policies
-  function getInterestRatePolicies() external view returns (InterestPolicy[] memory policies);
+  function getInterestPolicies() external view returns (InterestPolicy[] memory policies);
 
   //=== Admin functions ===//
   // @dev Allow admin to set interest rates for each period, if interest rate is <= 0, then the period is not available
