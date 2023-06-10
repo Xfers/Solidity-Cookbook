@@ -52,6 +52,9 @@ interface TBill {
   // @dev Query msg.sender's TBill holding by id
   function getTBillById(uint256 id) external view returns (LockedTBill memory tbill);
 
+  // @dev Let people revoke TBill within the cancellation period
+  function cancelTBill(uint256 id) external;
+
   // @dev Redeem TBill token to get back ERC20Token when released
   function redeemTBill(uint256 id) external;
 
