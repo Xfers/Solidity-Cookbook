@@ -8,6 +8,11 @@ interface TBills {
   event TBillsRedeemed(uint256 indexed id, uint256 amount, uint256 period, uint256 interestRate);
   event TBillsForceRefunded(uint256 indexed id, uint256 amount, uint256 period, uint256 interestRate);
 
+  struct InterestPolicy {
+    uint256 period;
+    uint256 interestRate;
+  }
+
   struct LockedTBills {
     uint256 id;
     uint256 interestRate;
@@ -17,13 +22,13 @@ interface TBills {
 
   //=== Public view functions ===//
   // @dev Get supported ERC20 token address
-  function getERC20TokenAddress() external view returns (address);
+  function getERC20TokenAddress() external view returns (address erc20TokenAddress);
 
   // @dev Get total locked ERC20 token amount
-  function getTotalLockedTokens() external view returns (uint256);
+  function getTotalLockedTokens() external view returns (uint256 totalLockedTokens);
 
   // @dev Show current interest rate policies
-  function getInterestRatePolicies() external view returns (uint256[] memory);
+  function getInterestRatePolicies() external view returns (InterestPolicy[] memory policies);
 
   //=== Admin functions ===//
   // @dev Allow admin to set interest rates for each period, if interest rate is <= 0, then the period is not available
@@ -34,13 +39,13 @@ interface TBills {
 
   //=== User functions ===//
   // @dev Let people buy TBills token with ERC20Token and select the locking period
-  function buyTBills(uint256 amount, uint256 period) external;
+  function buyTBills(uint256 amount, uint256 period) external returns (uint256 id);
 
   // @dev Let people revoke the locking if it's within 30 minutes after the purchase
   function revokeTBills(uint256 id) external;
 
   // @dev Query msg.sender's TBills holdings and details
-  function getTBillsHolding() external view returns (LockedTBills[] memory);
+  function getTBillsHolding() external view returns (LockedTBills[] memory tbills);
 
   // @dev Redeem TBills token to get back ERC20Token when released
   function redeemTBills(uint256 id) external;
