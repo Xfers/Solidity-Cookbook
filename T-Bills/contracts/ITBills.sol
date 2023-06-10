@@ -3,6 +3,7 @@
 pragma solidity >= 0.8.18;
 
 interface TBills {
+  event InterestPolicyChanged(uint256 period, uint256 interestRate);
   event TBillsLocked(LockedTBills);
   event TBillsRevoked(LockedTBills);
   event TBillsRedeemed(LockedTBills);
