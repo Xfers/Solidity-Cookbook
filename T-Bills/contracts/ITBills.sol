@@ -36,10 +36,10 @@ interface TBills {
   // @dev Allow admin to set interest rates for each period, if interest rate is <= 0, then the period is not available
   function setInterestRate(uint256 period, uint256 interestRate) external;
 
-  // @dev Allow admin to deposit ERC20Token for interests
+  // @dev Allow admin to deposit ERC20Token to interests pool
   function depositInterestFunds(uint256 amount) external;
 
-  // @dev Allow admin to withdraw ERC20Token for interests
+  // @dev Allow admin to withdraw ERC20Token from interests pool
   function withdrawInterestFunds(uint256 amount) external;
 
   //=== User functions ===//
