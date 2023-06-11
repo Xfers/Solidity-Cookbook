@@ -4,7 +4,6 @@ pragma solidity >=0.8.18;
 
 import "./ITBill.sol";
 import "./SafeMath.sol";
-import "hardhat/console.sol";
 
 interface IERC20 {
     function transfer(
@@ -26,13 +25,13 @@ interface IERC20 {
 contract TBillContract is ITBill {
     using SafeMath for uint256;
 
-    //=== Database ===//
     uint256 public interestRateDecimals = 6;
     uint256 public maxInterestRate = 500000; // 50%
     uint256 public minimumLockingPeriod = 1 days;
     address public interestFundAddress; // a.k.a. Owner
     address public erc20TokenAddress;
 
+    //=== Database ===//
     InterestPolicy[] private _interestPolicies;
     mapping(address => LockedTBill[]) private _ownedTBills;
 
@@ -74,12 +73,9 @@ contract TBillContract is ITBill {
         return erc20token.balanceOf(interestFundAddress);
     }
 
-    function getInterestRate(uint256 period)
-        external
-        view
-        override
-        returns (uint256)
-    {
+    function getInterestRate(
+        uint256 period
+    ) external view override returns (uint256) {
         return _getInterestRate(period);
     }
 
@@ -89,7 +85,10 @@ contract TBillContract is ITBill {
         uint256 interestRate
     ) external override onlyOwner {
         require(period >= minimumLockingPeriod, "Period too short");
-        require(interestRate < maxInterestRate, "Interest rate should be less than 50%");
+        require(
+            interestRate < maxInterestRate,
+            "Interest rate should be less than 50%"
+        );
 
         for (uint256 i = 0; i < _interestPolicies.length; i++) {
             if (_interestPolicies[i].period == period) {
@@ -109,7 +108,6 @@ contract TBillContract is ITBill {
     }
 
     //=== User functions ===//
-
     function buyTBill(
         uint256 amount,
         uint256 period
@@ -171,7 +169,6 @@ contract TBillContract is ITBill {
 
     function forceRefund(uint256 id) external override {
         LockedTBill memory tbill = _getTBillById(id);
-
         require(
             block.timestamp >= tbill.releaseTimestamp,
             "TBill not yet released"
@@ -180,7 +177,10 @@ contract TBillContract is ITBill {
         _disburseOriginalLockedFunds(tbill);
     }
 
-    function _getTBillById(uint256 id) private view returns (LockedTBill memory tbill) {
+    //=== Private functions ===//
+    function _getTBillById(
+        uint256 id
+    ) private view returns (LockedTBill memory tbill) {
         require(id < _ownedTBills[msg.sender].length, "TBill not found");
         LockedTBill memory lockedTBill = _ownedTBills[msg.sender][id];
         require(lockedTBill.owner == msg.sender, "Not the owner of the TBill");
@@ -199,23 +199,37 @@ contract TBillContract is ITBill {
     }
 
     function _deleteTBill(address owner, uint256 id) private {
-        _ownedTBills[owner][id] = _ownedTBills[owner][_ownedTBills[owner].length - 1];
+        _ownedTBills[owner][id] = _ownedTBills[owner][
+            _ownedTBills[owner].length - 1
+        ];
         _ownedTBills[owner][id].id = id;
         _ownedTBills[owner].pop();
     }
 
     function _disburseInterests(LockedTBill memory tbill) private {
-        uint256 interest = tbill.spotTokenAmount.mul(tbill.interestRate).div(10 ** interestRateDecimals);
+        uint256 interest = tbill.spotTokenAmount.mul(tbill.interestRate).div(
+            10 ** interestRateDecimals
+        );
         require(interest > 0, "Interest is 0, do forceRefund Instead");
 
-        try IERC20(erc20TokenAddress).transferFrom(interestFundAddress, tbill.owner, interest) {
-        } catch Error(string memory errorMessage) {
+        try
+            IERC20(erc20TokenAddress).transferFrom(
+                interestFundAddress,
+                tbill.owner,
+                interest
+            )
+        {} catch Error(string memory errorMessage) {
             revert(string.concat("Interests transfer failed: ", errorMessage));
         }
     }
 
     function _disburseOriginalLockedFunds(LockedTBill memory tbill) private {
-        try IERC20(erc20TokenAddress).transfer(msg.sender, tbill.spotTokenAmount) {
+        try
+            IERC20(erc20TokenAddress).transfer(
+                msg.sender,
+                tbill.spotTokenAmount
+            )
+        {
             _deleteTBill(msg.sender, tbill.id);
         } catch Error(string memory errorMessage) {
             revert(string.concat("Token transfer failed: ", errorMessage));
