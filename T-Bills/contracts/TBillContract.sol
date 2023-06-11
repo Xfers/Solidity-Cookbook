@@ -122,10 +122,6 @@ contract TBillContract is ITBill {
         // Lock the token into the contract
         IERC20 erc20token = IERC20(erc20TokenAddress);
         require(
-            erc20token.approve(address(this), amount),
-            "Token approval failed"
-        );
-        require(
             erc20token.transferFrom(msg.sender, address(this), amount),
             "Token transfer failed"
         );
