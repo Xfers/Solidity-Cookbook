@@ -119,17 +119,27 @@ contract TBillContract is ITBill {
         uint32 period
     ) external override returns (uint256 id) {
         require(amount > 0, "Amount must be greater than zero");
-        require(_getInterestRate(period) > 0, "Period not supported");
+        uint256 interestRate = _getInterestRate(period);
+        require(interestRate > 0, "Period not supported");
 
         // Lock the token into the contract
-        IERC20 erc20token = IERC20(erc20TokenAddress);
-        try erc20token.transferFrom(msg.sender, address(this), amount) {
+        uint256 interest = amount.mul(interestRate).div(
+            10 ** interestRateDecimals
+        );
+        require(interest <= amount, "Interest calculation overflow");
+        try
+            IERC20(erc20TokenAddress).transferFrom(
+                msg.sender,
+                address(this),
+                amount
+            )
+        {
             // Create receipt
             id = _ownedTBills[msg.sender].length;
             LockedTBill memory createdTBill = LockedTBill({
                 id: id,
                 owner: msg.sender,
-                interestRate: _getInterestRate(period),
+                expectedInterests: interest,
                 spotTokenAmount: amount,
                 releaseTimestamp: block.timestamp + period
             });
@@ -213,16 +223,11 @@ contract TBillContract is ITBill {
     }
 
     function _disburseInterests(LockedTBill memory tbill) private {
-        uint256 interest = tbill.spotTokenAmount.mul(tbill.interestRate).div(
-            10 ** interestRateDecimals
-        );
-        require(interest > 0, "Interest is 0, do forceRefund Instead");
-
         try
             IERC20(erc20TokenAddress).transferFrom(
                 interestFundAddress,
                 tbill.owner,
-                interest
+                tbill.expectedInterests
             )
         {} catch Error(string memory errorMessage) {
             revert(string.concat("Interests transfer failed: ", errorMessage));

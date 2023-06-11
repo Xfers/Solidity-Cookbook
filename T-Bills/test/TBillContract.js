@@ -76,7 +76,7 @@ describe("TBillContract", function () {
     expect(holdings).to.have.lengthOf(1);
     expect(holdings[0].id).to.equal(0);
     expect(holdings[0].owner).to.equal(user1.address);
-    expect(holdings[0].interestRate).to.equal(0.015 * INTEREST_RATE_UNIT);
+    expect(holdings[0].expectedInterests).to.equal(10000 * 0.015);
     expect(holdings[0].spotTokenAmount).to.equal(10000);
     expect(holdings[0].releaseTimestamp).to.equal(now.timestamp + 30 * DAY);
 
@@ -84,7 +84,7 @@ describe("TBillContract", function () {
     const holding = await tbillContract.connect(user1).getTBillById(0);
     expect(holding.id).to.equal(0);
     expect(holding.owner).to.equal(user1.address);
-    expect(holding.interestRate).to.equal(0.015 * INTEREST_RATE_UNIT);
+    expect(holding.expectedInterests).to.equal(10000 * 0.015);
     expect(holding.spotTokenAmount).to.equal(10000);
     expect(holding.releaseTimestamp).to.equal(now.timestamp + 30 * DAY);
 

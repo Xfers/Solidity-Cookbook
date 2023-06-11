@@ -17,7 +17,7 @@ interface ITBill {
     struct LockedTBill {
         uint256 id;
         address owner;
-        uint32 interestRate;
+        uint256 expectedInterests;
         uint256 spotTokenAmount;
         uint256 releaseTimestamp;
     }
