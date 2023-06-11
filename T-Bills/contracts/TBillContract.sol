@@ -170,23 +170,8 @@ contract TBillContract is ITBill {
             "TBill not yet released"
         );
 
-        // Release the interest
-        uint256 interest = tbill.spotTokenAmount.mul(tbill.interestRate).div(10 ** interestRateDecimals);
-        IERC20 erc20token = IERC20(erc20TokenAddress);
-
-        // Transfer from interestFundAddress to this
-        require(interest > 0, "Interest is 0, do forceRefund Instead");
-
-        try erc20token.transferFrom(interestFundAddress, tbill.owner, interest) {
-        } catch Error(string memory errorMessage) {
-            revert(string.concat("Interests transfer failed: ", errorMessage));
-        }
-
-        try erc20token.transfer(msg.sender, tbill.spotTokenAmount) {
-            _deleteTBill(msg.sender, id);
-        } catch Error(string memory errorMessage) {
-            revert(string.concat("Token transfer failed: ", errorMessage));
-        }
+        _disburseInterests(tbill);
+        _disburseOriginalLockedFunds(tbill);
     }
 
     function forceRefund(uint256 id) external override {
@@ -198,12 +183,7 @@ contract TBillContract is ITBill {
             "TBill not yet released"
         );
 
-        IERC20 erc20token = IERC20(erc20TokenAddress);
-        try erc20token.transfer(msg.sender, tbill.spotTokenAmount) {
-            _deleteTBill(msg.sender, id);
-        } catch Error(string memory errorMessage) {
-            revert(string.concat("Token transfer failed: ", errorMessage));
-        }
+        _disburseOriginalLockedFunds(tbill);
     }
 
     function _getInterestRate(uint256 period) private view returns (uint256) {
@@ -220,5 +200,23 @@ contract TBillContract is ITBill {
         _ownedTBills[owner][id] = _ownedTBills[owner][_ownedTBills[owner].length - 1];
         _ownedTBills[owner][id].id = id;
         _ownedTBills[owner].pop();
+    }
+
+    function _disburseInterests(LockedTBill memory tbill) private {
+        uint256 interest = tbill.spotTokenAmount.mul(tbill.interestRate).div(10 ** interestRateDecimals);
+        require(interest > 0, "Interest is 0, do forceRefund Instead");
+
+        try IERC20(erc20TokenAddress).transferFrom(interestFundAddress, tbill.owner, interest) {
+        } catch Error(string memory errorMessage) {
+            revert(string.concat("Interests transfer failed: ", errorMessage));
+        }
+    }
+
+    function _disburseOriginalLockedFunds(LockedTBill memory tbill) private {
+        try IERC20(erc20TokenAddress).transfer(msg.sender, tbill.spotTokenAmount) {
+            _deleteTBill(msg.sender, tbill.id);
+        } catch Error(string memory errorMessage) {
+            revert(string.concat("Token transfer failed: ", errorMessage));
+        }
     }
 }
