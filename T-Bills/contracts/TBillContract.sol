@@ -25,9 +25,9 @@ interface IERC20 {
 contract TBillContract is ITBill {
     using SafeMath for uint256;
 
-    uint256 public interestRateDecimals = 6;
-    uint256 public maxInterestRate = 500000; // 50%
-    uint256 public minimumLockingPeriod = 1 days;
+    uint8 public interestRateDecimals = 6;
+    uint32 public maxInterestRate = 500000; // 50%
+    uint32 public minimumLockingPeriod = 1 days;
     address public interestFundAddress; // a.k.a. Owner
     address public erc20TokenAddress;
 
@@ -74,15 +74,15 @@ contract TBillContract is ITBill {
     }
 
     function getInterestRate(
-        uint256 period
-    ) external view override returns (uint256) {
+        uint32 period
+    ) external view override returns (uint32) {
         return _getInterestRate(period);
     }
 
     //=== Admin functions ===//
     function setInterestRate(
-        uint256 period,
-        uint256 interestRate
+        uint32 period,
+        uint32 interestRate
     ) external override onlyOwner {
         require(period >= minimumLockingPeriod, "Period too short");
         require(
@@ -107,18 +107,16 @@ contract TBillContract is ITBill {
         emit InterestPolicyChanged(period, interestRate);
     }
 
-    function setInterestFundAddress(address newAddress)
-        external
-        override
-        onlyOwner
-    {
+    function setInterestFundAddress(
+        address newAddress
+    ) external override onlyOwner {
         interestFundAddress = newAddress;
     }
 
     //=== User functions ===//
     function buyTBill(
         uint256 amount,
-        uint256 period
+        uint32 period
     ) external override returns (uint256 id) {
         require(amount > 0, "Amount must be greater than zero");
         require(_getInterestRate(period) > 0, "Period not supported");
@@ -196,7 +194,7 @@ contract TBillContract is ITBill {
         return lockedTBill;
     }
 
-    function _getInterestRate(uint256 period) private view returns (uint256) {
+    function _getInterestRate(uint32 period) private view returns (uint32) {
         for (uint256 i = 0; i < _interestPolicies.length; i++) {
             if (_interestPolicies[i].period == period) {
                 return _interestPolicies[i].interestRate;

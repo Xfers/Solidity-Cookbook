@@ -3,21 +3,21 @@
 pragma solidity >=0.8.18;
 
 interface ITBill {
-    event InterestPolicyChanged(uint256 period, uint256 interestRate);
+    event InterestPolicyChanged(uint32 period, uint32 interestRate);
     event TBillLocked(LockedTBill);
     event TBillRevoked(LockedTBill);
     event TBillRedeemed(LockedTBill);
     event TBillForceRefunded(LockedTBill);
 
     struct InterestPolicy {
-        uint256 period;
-        uint256 interestRate;
+        uint32 period;
+        uint32 interestRate;
     }
 
     struct LockedTBill {
         uint256 id;
         address owner;
-        uint256 interestRate;
+        uint32 interestRate;
         uint256 spotTokenAmount;
         uint256 releaseTimestamp;
     }
@@ -39,11 +39,11 @@ interface ITBill {
     function getInterestFundBalance() external view returns (uint256);
 
     // @dev Get Interest rate
-    function getInterestRate(uint256 period) external view returns (uint256);
+    function getInterestRate(uint32 period) external view returns (uint32);
 
     //=== Admin functions ===//
     // @dev Allow admin to set interest rates for each period, if interest rate is <= 0, then the period is not available
-    function setInterestRate(uint256 period, uint256 interestRate) external;
+    function setInterestRate(uint32 period, uint32 interestRate) external;
 
     // @dev Allow admin to change the interest fund address
     function setInterestFundAddress(address newAddress) external;
@@ -52,7 +52,7 @@ interface ITBill {
     // @dev Let people buy TBill token with ERC20Token and select the locking period
     function buyTBill(
         uint256 amount,
-        uint256 period
+        uint32 period
     ) external returns (uint256 id);
 
     // @dev Query msg.sender's TBill holdings and details
