@@ -45,6 +45,9 @@ interface ITBill {
     // @dev Allow admin to set interest rates for each period, if interest rate is <= 0, then the period is not available
     function setInterestRate(uint256 period, uint256 interestRate) external;
 
+    // @dev Allow admin to change the interest fund address
+    function setInterestFundAddress(address newAddress) external;
+
     //=== User functions ===//
     // @dev Let people buy TBill token with ERC20Token and select the locking period
     function buyTBill(

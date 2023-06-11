@@ -107,6 +107,14 @@ contract TBillContract is ITBill {
         emit InterestPolicyChanged(period, interestRate);
     }
 
+    function setInterestFundAddress(address newAddress)
+        external
+        override
+        onlyOwner
+    {
+        interestFundAddress = newAddress;
+    }
+
     //=== User functions ===//
     function buyTBill(
         uint256 amount,
