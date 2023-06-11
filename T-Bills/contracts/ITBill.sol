@@ -5,7 +5,7 @@ pragma solidity >=0.8.18;
 interface ITBill {
     event InterestPolicyChanged(uint32 period, uint32 interestRate);
     event TBillLocked(LockedTBill);
-    event TBillRevoked(LockedTBill);
+    event TBillCancelled(LockedTBill);
     event TBillRedeemed(LockedTBill);
     event TBillForceRefunded(LockedTBill);
 

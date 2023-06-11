@@ -181,6 +181,8 @@ contract TBillContract is ITBill {
 
         _disburseInterests(tbill);
         _disburseOriginalLockedFunds(tbill);
+
+        emit TBillRedeemed(tbill);
     }
 
     function forceRefund(uint256 id) external override {
@@ -191,6 +193,8 @@ contract TBillContract is ITBill {
         );
 
         _disburseOriginalLockedFunds(tbill);
+
+        emit TBillForceRefunded(tbill);
     }
 
     //=== Private functions ===//
