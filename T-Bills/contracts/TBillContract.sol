@@ -32,14 +32,9 @@ contract TBillContract is ITBill {
     uint256 public minimumLockingPeriod = 1 days;
     address public interestFundAddress; // a.k.a. Owner
     address public erc20TokenAddress;
-    // Period => InterestRate
-    InterestPolicy[] private _interestPolicies;
-    LockedTBill[] private _tbills;
 
-    //=== Index ===//
-    uint256 private _totalLockedTokens;
-    // Owner Address => TBillID[]
-    mapping(address => uint256[]) private _tbillsHoldingIndex;
+    InterestPolicy[] private _interestPolicies;
+    mapping(address => LockedTBill[]) private _ownedTBills;
 
     constructor(address _interestFundAddress, address _erc20TokenAddress) {
         interestFundAddress = _interestFundAddress;
@@ -130,7 +125,7 @@ contract TBillContract is ITBill {
         );
 
         // Create receipt
-        id = _tbills.length;
+        id = _ownedTBills[msg.sender].length;
         LockedTBill memory createdTBill = LockedTBill({
             id: id,
             owner: msg.sender,
@@ -139,9 +134,7 @@ contract TBillContract is ITBill {
             releaseTimestamp: block.timestamp + period
         });
 
-        _tbills.push(createdTBill);
-
-        _tbillsHoldingIndex[msg.sender].push(createdTBill.id);
+        _ownedTBills[msg.sender].push(createdTBill);
 
         emit TBillLocked(createdTBill);
         return createdTBill.id;
@@ -151,21 +144,15 @@ contract TBillContract is ITBill {
         external
         view
         override
-        returns (LockedTBill[] memory tbills)
+        returns (LockedTBill[] memory)
     {
-        tbills = new LockedTBill[](_tbillsHoldingIndex[msg.sender].length);
-
-        for (uint256 i = 0; i < _tbillsHoldingIndex[msg.sender].length; i++) {
-            tbills[i] = _tbills[_tbillsHoldingIndex[msg.sender][i]];
-        }
-
-        return tbills;
+        return _ownedTBills[msg.sender];
     }
 
     function getTBillById(
         uint256 id
     ) external view override returns (LockedTBill memory tbill) {
-        LockedTBill storage lockedTBill = _tbills[id];
+        LockedTBill storage lockedTBill = _ownedTBills[msg.sender][id];
         require(lockedTBill.owner == msg.sender, "Not the owner of the TBill");
 
         return lockedTBill;
@@ -176,7 +163,8 @@ contract TBillContract is ITBill {
     }
 
     function redeemTBill(uint256 id) external override {
-        LockedTBill storage tbill = _tbills[id];
+        require(id < _ownedTBills[msg.sender].length, "TBill not found");
+        LockedTBill storage tbill = _ownedTBills[msg.sender][id];
         require(tbill.owner == msg.sender, "Not the owner of the TBill");
         require(
             block.timestamp >= tbill.releaseTimestamp,
@@ -200,12 +188,11 @@ contract TBillContract is ITBill {
             revert(string.concat("Token transfer failed: ", errorMessage));
         }
 
-        // Mark as redeemed
-        tbill.owner = address(0);
+        _deleteTBill(msg.sender, id);
     }
 
     function forceRefund(uint256 id) external override {
-        LockedTBill storage tbill = _tbills[id];
+        LockedTBill storage tbill = _ownedTBills[msg.sender][id];
         require(tbill.owner == msg.sender, "Not the owner of the TBill");
         require(
             block.timestamp >= tbill.releaseTimestamp,
@@ -218,8 +205,7 @@ contract TBillContract is ITBill {
             "Token transfer failed"
         );
 
-        // Mark as redeemed
-        tbill.owner = address(0);
+        _deleteTBill(msg.sender, id);
     }
 
     function _getInterestRate(uint256 period) private view returns (uint256) {
@@ -230,5 +216,11 @@ contract TBillContract is ITBill {
         }
 
         return 0;
+    }
+
+    function _deleteTBill(address owner, uint256 id) private {
+        _ownedTBills[owner][id] = _ownedTBills[owner][_ownedTBills[owner].length - 1];
+        _ownedTBills[owner][id].id = id;
+        _ownedTBills[owner].pop();
     }
 }

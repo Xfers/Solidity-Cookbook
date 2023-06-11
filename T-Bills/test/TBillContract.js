@@ -99,7 +99,7 @@ describe("TBillContract", function () {
     // Redeem before release
     await helpers.time.increaseTo(now.timestamp + 29 * DAY);
     try {
-      await tbillContract.connect(user1).redeemTBill(0);
+      await tbillContract.connect(user1).redeemTBill(holding.id);
       expect(false).to.be.true; // Expect this line not to reach
     } catch (err) {
       expect(err.message).to.contain("TBill not yet released");
@@ -109,7 +109,7 @@ describe("TBillContract", function () {
     await helpers.time.increaseTo(now.timestamp + 30 * DAY);
 
     try {
-      await tbillContract.connect(user1).redeemTBill(0);
+      await tbillContract.connect(user1).redeemTBill(holding.id);
       expect(false).to.be.true; // Expect this line not to reach
     } catch (err) {
       expect(err.message).to.contain("Interests transfer failed: ERC20: insufficient allowance");
@@ -124,7 +124,7 @@ describe("TBillContract", function () {
     await spotTokenContract.connect(interestFund).approve(tbillContract.address, 999999999);
 
     // Redeem after release: Sufficient funds for interests
-    await tbillContract.connect(user1).redeemTBill(0);
+    await tbillContract.connect(user1).redeemTBill(holding.id);
     expect(await spotTokenContract.balanceOf(user1.address)).to.equal(656000 + 10000 * 1.015);
     expect(await spotTokenContract.balanceOf(interestFund.address)).to.equal(999999999 - 10000 * 0.015);
     expect(await spotTokenContract.balanceOf(tbillContract.address)).to.equal(0);
@@ -132,10 +132,10 @@ describe("TBillContract", function () {
 
     // Expect cannot redeem again
     try {
-      await tbillContract.connect(user1).redeemTBill(0);
+      await tbillContract.connect(user1).redeemTBill(holding.id);
       expect(false).to.be.true; // Expect this line not to reach
     } catch (err) {
-      expect(err.message).to.contain("Not the owner of the TBill");
+      expect(err.message).to.contain("TBill not found");
     }
 
     // Expect no holding already
