@@ -119,25 +119,24 @@ contract TBillContract is ITBill {
 
         // Lock the token into the contract
         IERC20 erc20token = IERC20(erc20TokenAddress);
-        require(
-            erc20token.transferFrom(msg.sender, address(this), amount),
-            "Token transfer failed"
-        );
+        try erc20token.transferFrom(msg.sender, address(this), amount) {
+            // Create receipt
+            id = _ownedTBills[msg.sender].length;
+            LockedTBill memory createdTBill = LockedTBill({
+                id: id,
+                owner: msg.sender,
+                interestRate: _getInterestRate(period),
+                spotTokenAmount: amount,
+                releaseTimestamp: block.timestamp + period
+            });
 
-        // Create receipt
-        id = _ownedTBills[msg.sender].length;
-        LockedTBill memory createdTBill = LockedTBill({
-            id: id,
-            owner: msg.sender,
-            interestRate: _getInterestRate(period),
-            spotTokenAmount: amount,
-            releaseTimestamp: block.timestamp + period
-        });
+            _ownedTBills[msg.sender].push(createdTBill);
 
-        _ownedTBills[msg.sender].push(createdTBill);
-
-        emit TBillLocked(createdTBill);
-        return createdTBill.id;
+            emit TBillLocked(createdTBill);
+            return createdTBill.id;
+        } catch Error(string memory errorMessage) {
+            revert(string.concat("Token transfer failed: ", errorMessage));
+        }
     }
 
     function getTBillHoldings()
@@ -184,28 +183,27 @@ contract TBillContract is ITBill {
         }
 
         try erc20token.transfer(msg.sender, tbill.spotTokenAmount) {
+            _deleteTBill(msg.sender, id);
         } catch Error(string memory errorMessage) {
             revert(string.concat("Token transfer failed: ", errorMessage));
         }
-
-        _deleteTBill(msg.sender, id);
     }
 
     function forceRefund(uint256 id) external override {
         LockedTBill storage tbill = _ownedTBills[msg.sender][id];
         require(tbill.owner == msg.sender, "Not the owner of the TBill");
+
         require(
             block.timestamp >= tbill.releaseTimestamp,
             "TBill not yet released"
         );
 
         IERC20 erc20token = IERC20(erc20TokenAddress);
-        require(
-            erc20token.transfer(msg.sender, tbill.spotTokenAmount),
-            "Token transfer failed"
-        );
-
-        _deleteTBill(msg.sender, id);
+        try erc20token.transfer(msg.sender, tbill.spotTokenAmount) {
+            _deleteTBill(msg.sender, id);
+        } catch Error(string memory errorMessage) {
+            revert(string.concat("Token transfer failed: ", errorMessage));
+        }
     }
 
     function _getInterestRate(uint256 period) private view returns (uint256) {
