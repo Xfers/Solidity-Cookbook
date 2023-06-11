@@ -17,6 +17,7 @@
     "hardhat": "^2.14.0"
   },
   "dependencies": {
+    "@openzeppelin/contracts": "^4.9.1",
     "dotenv": "^16.1.4",
     "readline-sync": "^1.4.10"
   }
