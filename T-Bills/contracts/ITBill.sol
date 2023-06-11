@@ -53,7 +53,7 @@ interface ITBill {
     ) external returns (uint256 id);
 
     // @dev Query msg.sender's TBill holdings and details
-    function getTBillHolding()
+    function getTBillHoldings()
         external
         view
         returns (LockedTBill[] memory tbills);

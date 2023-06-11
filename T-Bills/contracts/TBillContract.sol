@@ -4,6 +4,7 @@ pragma solidity >=0.8.18;
 
 import "./ITBill.sol";
 import "./SafeMath.sol";
+import "hardhat/console.sol";
 
 interface IERC20 {
     function transfer(
@@ -27,6 +28,7 @@ contract TBillContract is ITBill {
 
     //=== Database ===//
     uint256 public interestRateDecimals = 6;
+    uint256 public maxInterestRate = 500000; // 50%
     uint256 public minimumLockingPeriod = 1 days;
     address public interestFundAddress; // a.k.a. Owner
     address public erc20TokenAddress;
@@ -92,6 +94,7 @@ contract TBillContract is ITBill {
         uint256 interestRate
     ) external override onlyOwner {
         require(period >= minimumLockingPeriod, "Period too short");
+        require(interestRate < maxInterestRate, "Interest rate should be less than 50%");
 
         for (uint256 i = 0; i < _interestPolicies.length; i++) {
             if (_interestPolicies[i].period == period) {
@@ -144,7 +147,7 @@ contract TBillContract is ITBill {
         return createdTBill.id;
     }
 
-    function getTBillHolding()
+    function getTBillHoldings()
         external
         view
         override
@@ -181,20 +184,21 @@ contract TBillContract is ITBill {
         );
 
         // Release the interest
-        uint256 interest = tbill.spotTokenAmount.mul(
-            tbill.interestRate.div(10 ** interestRateDecimals)
-        );
+        uint256 interest = tbill.spotTokenAmount.mul(tbill.interestRate).div(10 ** interestRateDecimals);
         IERC20 erc20token = IERC20(erc20TokenAddress);
 
         // Transfer from interestFundAddress to this
-        require(
-            erc20token.transferFrom(msg.sender, tbill.owner, interest),
-            "Token transfer failed"
-        );
-        require(
-            erc20token.transfer(msg.sender, tbill.spotTokenAmount),
-            "Token transfer failed"
-        );
+        require(interest > 0, "Interest is 0, do forceRefund Instead");
+
+        try erc20token.transferFrom(interestFundAddress, tbill.owner, interest) {
+        } catch Error(string memory errorMessage) {
+            revert(string.concat("Interests transfer failed: ", errorMessage));
+        }
+
+        try erc20token.transfer(msg.sender, tbill.spotTokenAmount) {
+        } catch Error(string memory errorMessage) {
+            revert(string.concat("Token transfer failed: ", errorMessage));
+        }
 
         // Mark as redeemed
         tbill.owner = address(0);

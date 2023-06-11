@@ -1,8 +1,9 @@
 // Test script for TBillContract.sol
-
+const helpers = require("@nomicfoundation/hardhat-network-helpers");
 const { expect } = require("chai");
 
 const DAY = 86400;
+const INTEREST_RATE_UNIT = 10 ** 6;
 
 describe("TBillContract", function () {
   it("Should return correct constants", async function () {
@@ -53,54 +54,92 @@ describe("TBillContract", function () {
 
   it("Should lock tokens when buying TBill", async function () {
     // Setup
-    const [interestFund, user1, user2] = await ethers.getSigners();
+    const [interestFund, user1] = await ethers.getSigners();
     const spotTokenContract = await ethers.deployContract("SpotTokenContract");
     const tbillContract = await ethers.deployContract("TBillContract", [interestFund.address, spotTokenContract.address]);
 
-    tbillContract.setInterestRate(30 * DAY, 150000);
-    await spotTokenContract.mint(user1.address, 666);
-    await spotTokenContract.mint(user2.address, 777);
+    await tbillContract.setInterestRate(30 * DAY, 0.015 * INTEREST_RATE_UNIT);
+    await spotTokenContract.mint(user1.address, 666000);
 
-    let holding;
-    let blockNum;
-    let now;
+    // User1 buys TBill with 10000 tokens
+    await spotTokenContract.connect(user1).approve(tbillContract.address, 10000);
+    await tbillContract.connect(user1).buyTBill(10000, 30 * DAY);
 
-    // User1 buys TBill with 10 tokens
-    await spotTokenContract.connect(user1).approve(tbillContract.address, 10);
-    await tbillContract.connect(user1).buyTBill(10, 30 * DAY);
+    expect(await spotTokenContract.balanceOf(user1.address)).to.equal(656000);
+    expect(await spotTokenContract.balanceOf(tbillContract.address)).to.equal(10000);
+    expect(await tbillContract.getTotalLockedTokens()).to.equal(10000);
 
-    expect(await spotTokenContract.balanceOf(user1.address)).to.equal(656);
-    expect(await spotTokenContract.balanceOf(tbillContract.address)).to.equal(10);
-    expect(await tbillContract.getTotalLockedTokens()).to.equal(10);
+    const holdings = await tbillContract.connect(user1).getTBillHoldings();
+    const blockNum = await ethers.provider.getBlockNumber();
+    const now = await ethers.provider.getBlock(blockNum);
 
-    holding = await tbillContract.connect(user1).getTBillHolding();
-    blockNum = await ethers.provider.getBlockNumber();
-    now = await ethers.provider.getBlock(blockNum);
+    expect(holdings).to.have.lengthOf(1);
+    expect(holdings[0].id).to.equal(0);
+    expect(holdings[0].owner).to.equal(user1.address);
+    expect(holdings[0].interestRate).to.equal(0.015 * INTEREST_RATE_UNIT);
+    expect(holdings[0].spotTokenAmount).to.equal(10000);
+    expect(holdings[0].releaseTimestamp).to.equal(now.timestamp + 30 * DAY);
 
-    expect(holding).to.have.lengthOf(1);
-    expect(holding[0].id).to.equal(0);
-    expect(holding[0].owner).to.equal(user1.address);
-    expect(holding[0].interestRate).to.equal(150000);
-    expect(holding[0].spotTokenAmount).to.equal(10);
-    expect(holding[0].releaseTimestamp).to.equal(now.timestamp + 30 * DAY);
 
-    // User2 buys TBill with 50 tokens
-    await spotTokenContract.connect(user2).approve(tbillContract.address, 50);
-    await tbillContract.connect(user2).buyTBill(50, 30 * DAY);
+    const holding = await tbillContract.connect(user1).getTBillById(0);
+    expect(holding.id).to.equal(0);
+    expect(holding.owner).to.equal(user1.address);
+    expect(holding.interestRate).to.equal(0.015 * INTEREST_RATE_UNIT);
+    expect(holding.spotTokenAmount).to.equal(10000);
+    expect(holding.releaseTimestamp).to.equal(now.timestamp + 30 * DAY);
 
-    expect(await spotTokenContract.balanceOf(user2.address)).to.equal(727);
-    expect(await spotTokenContract.balanceOf(tbillContract.address)).to.equal(60);
-    expect(await tbillContract.getTotalLockedTokens()).to.equal(60);
+    // Redeem immediatly
+    try {
+      await tbillContract.connect(user1).redeemTBill(0);
+      expect(false).to.be.true; // Expect this line not to reach
+    } catch (err) {
+      expect(err.message).to.contain("TBill not yet released");
+    }
 
-    holding = await tbillContract.connect(user2).getTBillHolding();
-    blockNum = await ethers.provider.getBlockNumber();
-    now = await ethers.provider.getBlock(blockNum);
+    // Redeem before release
+    await helpers.time.increaseTo(now.timestamp + 29 * DAY);
+    try {
+      await tbillContract.connect(user1).redeemTBill(0);
+      expect(false).to.be.true; // Expect this line not to reach
+    } catch (err) {
+      expect(err.message).to.contain("TBill not yet released");
+    }
 
-    expect(holding).to.have.lengthOf(1);
-    expect(holding[0].id).to.equal(1);
-    expect(holding[0].owner).to.equal(user2.address);
-    expect(holding[0].interestRate).to.equal(150000);
-    expect(holding[0].spotTokenAmount).to.equal(50);
-    expect(holding[0].releaseTimestamp).to.equal(now.timestamp + 30 * DAY);
+    // Redeem after release: But insufficient funds for interests
+    await helpers.time.increaseTo(now.timestamp + 30 * DAY);
+
+    try {
+      await tbillContract.connect(user1).redeemTBill(0);
+      expect(false).to.be.true; // Expect this line not to reach
+    } catch (err) {
+      expect(err.message).to.contain("Interests transfer failed: ERC20: insufficient allowance");
+    }
+
+    expect(await spotTokenContract.balanceOf(user1.address)).to.equal(656000);
+    expect(await spotTokenContract.balanceOf(tbillContract.address)).to.equal(10000);
+    expect(await tbillContract.getTotalLockedTokens()).to.equal(10000);
+
+    // Deposit to interests fund
+    await spotTokenContract.mint(interestFund.address, 999999999);
+    await spotTokenContract.connect(interestFund).approve(tbillContract.address, 999999999);
+
+    // Redeem after release: Sufficient funds for interests
+    await tbillContract.connect(user1).redeemTBill(0);
+    expect(await spotTokenContract.balanceOf(user1.address)).to.equal(656000 + 10000 * 1.015);
+    expect(await spotTokenContract.balanceOf(interestFund.address)).to.equal(999999999 - 10000 * 0.015);
+    expect(await spotTokenContract.balanceOf(tbillContract.address)).to.equal(0);
+    expect(await tbillContract.getTotalLockedTokens()).to.equal(0);
+
+    // Expect cannot redeem again
+    try {
+      await tbillContract.connect(user1).redeemTBill(0);
+      expect(false).to.be.true; // Expect this line not to reach
+    } catch (err) {
+      expect(err.message).to.contain("Not the owner of the TBill");
+    }
+
+    // Expect no holding already
+    const holdings2 = await tbillContract.connect(user1).getTBillHoldings();
+    expect(holdings2).to.have.lengthOf(0);
   });
 });
