@@ -142,4 +142,55 @@ describe("TBillContract", function () {
     const holdings2 = await tbillContract.connect(user1).getTBillHoldings();
     expect(holdings2).to.have.lengthOf(0);
   });
+
+  it("Should handle multiple holdings properly", async function () {
+    // Setup
+    const [interestFund, user1, user2] = await ethers.getSigners();
+    const spotTokenContract = await ethers.deployContract("SpotTokenContract");
+    const tbillContract = await ethers.deployContract("TBillContract", [interestFund.address, spotTokenContract.address]);
+
+    await tbillContract.setInterestRate(30 * DAY, 0.015 * INTEREST_RATE_UNIT);
+    await tbillContract.setInterestRate(60 * DAY, 0.02 * INTEREST_RATE_UNIT);
+    await spotTokenContract.mint(user1.address, 666000);
+    await spotTokenContract.mint(user2.address, 999000);
+    // Deposit to interests fund
+    await spotTokenContract.mint(interestFund.address, 999999999);
+    await spotTokenContract.connect(interestFund).approve(tbillContract.address, 999999999);
+
+    // Different Users buying
+    await spotTokenContract.connect(user1).approve(tbillContract.address, 10000);
+    await tbillContract.connect(user1).buyTBill(10000, 30 * DAY);
+    await spotTokenContract.connect(user1).approve(tbillContract.address, 20000);
+    await tbillContract.connect(user1).buyTBill(20000, 60 * DAY);
+    await spotTokenContract.connect(user2).approve(tbillContract.address, 90000);
+    await tbillContract.connect(user2).buyTBill(90000, 30 * DAY);
+
+
+    let holdings = await tbillContract.connect(user1).getTBillHoldings();
+    expect(holdings).to.have.lengthOf(2);
+    expect(await spotTokenContract.balanceOf(user1.address)).to.equal(636000);
+    expect(await spotTokenContract.balanceOf(user2.address)).to.equal(909000);
+    expect(await spotTokenContract.balanceOf(tbillContract.address)).to.equal(120000);
+    expect(await tbillContract.getTotalLockedTokens()).to.equal(120000);
+
+    // User1 redeeming
+    await helpers.time.increaseTo((await ethers.provider.getBlock(await ethers.provider.getBlockNumber())).timestamp + 60 * DAY);
+    await tbillContract.connect(user1).redeemTBill(0);
+    expect(await spotTokenContract.balanceOf(user1.address)).to.equal(636000 + 10000 * 1.015);
+    expect(await spotTokenContract.balanceOf(interestFund.address)).to.equal(999999999 - 10000 * 0.015);
+    expect(await spotTokenContract.balanceOf(tbillContract.address)).to.equal(110000);
+    expect(await tbillContract.getTotalLockedTokens()).to.equal(110000);
+
+    // User2 redeeming
+    await tbillContract.connect(user2).redeemTBill(0);
+    expect(await spotTokenContract.balanceOf(user2.address)).to.equal(909000 + 90000 * 1.015);
+    expect(await spotTokenContract.balanceOf(interestFund.address)).to.equal(999999999 - 10000 * 0.015 - 90000 * 0.015);
+
+    // // User1 redeeming again
+    await tbillContract.connect(user1).redeemTBill(0); // NOTE: After we swap, the ID changed
+    expect(await spotTokenContract.balanceOf(user1.address)).to.equal(636000 + 10000 * 1.015 + 20000 * 1.02);
+    expect(await spotTokenContract.balanceOf(interestFund.address)).to.equal(999999999 - 10000 * 0.015 - 90000 * 0.015 - 20000 * 0.02);
+    expect(await spotTokenContract.balanceOf(tbillContract.address)).to.equal(0);
+    expect(await tbillContract.getTotalLockedTokens()).to.equal(0);
+  });
 });
