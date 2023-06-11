@@ -151,10 +151,7 @@ contract TBillContract is ITBill {
     function getTBillById(
         uint256 id
     ) external view override returns (LockedTBill memory tbill) {
-        LockedTBill storage lockedTBill = _ownedTBills[msg.sender][id];
-        require(lockedTBill.owner == msg.sender, "Not the owner of the TBill");
-
-        return lockedTBill;
+        return _getTBillById(id);
     }
 
     function cancelTBill(uint256 id) external pure override {
@@ -162,9 +159,7 @@ contract TBillContract is ITBill {
     }
 
     function redeemTBill(uint256 id) external override {
-        require(id < _ownedTBills[msg.sender].length, "TBill not found");
-        LockedTBill storage tbill = _ownedTBills[msg.sender][id];
-        require(tbill.owner == msg.sender, "Not the owner of the TBill");
+        LockedTBill memory tbill = _getTBillById(id);
         require(
             block.timestamp >= tbill.releaseTimestamp,
             "TBill not yet released"
@@ -175,8 +170,7 @@ contract TBillContract is ITBill {
     }
 
     function forceRefund(uint256 id) external override {
-        LockedTBill storage tbill = _ownedTBills[msg.sender][id];
-        require(tbill.owner == msg.sender, "Not the owner of the TBill");
+        LockedTBill memory tbill = _getTBillById(id);
 
         require(
             block.timestamp >= tbill.releaseTimestamp,
@@ -184,6 +178,14 @@ contract TBillContract is ITBill {
         );
 
         _disburseOriginalLockedFunds(tbill);
+    }
+
+    function _getTBillById(uint256 id) private view returns (LockedTBill memory tbill) {
+        require(id < _ownedTBills[msg.sender].length, "TBill not found");
+        LockedTBill memory lockedTBill = _ownedTBills[msg.sender][id];
+        require(lockedTBill.owner == msg.sender, "Not the owner of the TBill");
+
+        return lockedTBill;
     }
 
     function _getInterestRate(uint256 period) private view returns (uint256) {

@@ -192,5 +192,9 @@ describe("TBillContract", function () {
     expect(await spotTokenContract.balanceOf(interestFund.address)).to.equal(999999999 - 10000 * 0.015 - 90000 * 0.015 - 20000 * 0.02);
     expect(await spotTokenContract.balanceOf(tbillContract.address)).to.equal(0);
     expect(await tbillContract.getTotalLockedTokens()).to.equal(0);
+
+    // Expect no holding already
+    expect(await tbillContract.connect(user1).getTBillHoldings()).to.have.lengthOf(0);
+    expect(await tbillContract.connect(user2).getTBillHoldings()).to.have.lengthOf(0);
   });
 });
